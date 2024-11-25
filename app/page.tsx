@@ -52,6 +52,7 @@ export default function WhoisLookup() {
 
       const data: WhoisResponse = await response.json();
       setResult(data);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error('Error:', err);
       setError(`Error fetching data: ${err.message}`);
