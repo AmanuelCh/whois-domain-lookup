@@ -5,49 +5,58 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Search } from 'lucide-react';
+import WhoisInfoItem from '@/components/WhoisInfoItem';
 import { WhoisResponse } from '../lib/type';
 
 export default function WhoisLookup() {
   const [domain, setDomain] = useState('');
   const [result, setResult] = useState<WhoisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false); // Loading state
+  const [loading, setLoading] = useState<boolean>(false);
 
   const fetchWhoisData = async () => {
     setLoading(true);
     setResult(null);
-    // setDomain('');
     setError(null);
 
-    // API config
-    const myHeaders = new Headers();
-    myHeaders.append('apikey', process.env.NEXT_PUBLIC_API_KEY || '');
+    if (!domain) {
+      setError('Please enter a domain name');
+      setLoading(false);
+      return;
+    }
 
-    const requestOptions = {
+    const myHeaders = new Headers();
+    myHeaders.append('apikey', process.env.NEXT_PUBLIC_API_KEY || ''); // Still not ideal for prod
+
+    const requestOptions: RequestInit = {
       method: 'GET',
-      redirect: 'follow',
       headers: myHeaders,
     };
 
     try {
       const response = await fetch(
-        `https://api.apilayer.com/whois/query?domain=${domain}`,
+        `https://api.apilayer.com/whois/query?domain=${encodeURIComponent(
+          domain
+        )}`,
         requestOptions
       );
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        const errorData = await response.json();
+        const errorMessage =
+          errorData.error ||
+          response.statusText ||
+          'Network response was not ok';
+        throw new Error(errorMessage);
       }
 
       const data: WhoisResponse = await response.json();
-      console.log(data);
       setResult(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error:', err);
-      setError('Error fetching data. Make sure you typed the domain too');
-      setResult(null); // Clear any previous results
+      setError(`Error fetching data: ${err.message}`);
     } finally {
-      setLoading(false); // Set loading to false after fetch completes
+      setLoading(false);
     }
   };
 
@@ -64,7 +73,7 @@ export default function WhoisLookup() {
         <div className='absolute inset-0 bg-[linear-gradient(to_right,#222_1px,transparent_1px),linear-gradient(to_bottom,#222_1px,transparent_1px)] bg-[size:50px_50px]'></div>
       </div>
 
-      <Card className='max-w-4xl mx-auto bg-gray-800/80 border-gray-700 backdrop-blur-sm'>
+      <Card className='max-w-5xl mx-auto bg-gray-800/80 border-gray-700 backdrop-blur-sm'>
         <CardHeader>
           <CardTitle className='text-3xl font-bold text-center text-gray-100'>
             WHOIS Domain Lookup
@@ -92,7 +101,7 @@ export default function WhoisLookup() {
               ) : (
                 <Search className='mr-2 h-4 w-4' />
               )}
-              {loading ? 'Searching...' : 'Lookup'}
+              {loading ? 'Looking up...' : 'Lookup'}
             </Button>
           </div>
 
@@ -107,94 +116,67 @@ export default function WhoisLookup() {
 
           {result && (
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in'>
-              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
+              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm max-w-full'>
                 <CardHeader>
                   <CardTitle className='text-lg font-semibold text-gray-100'>
-                    Domain Info
+                    WHOIS Information
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p>
-                    <span className='font-medium'>Domain:</span>{' '}
-                    {result.result.domain_name}
-                  </p>
+                <CardContent className='text-gray-200'>
+                  <WhoisInfoItem
+                    label='Domain'
+                    value={result.result.domain_name}
+                  />
+                  <WhoisInfoItem
+                    label='Registrar'
+                    value={result.result.registrar}
+                  />
+                  <WhoisInfoItem
+                    label='Created At'
+                    value={result.result.creation_date}
+                  />
+                  <WhoisInfoItem
+                    label='Updated At'
+                    value={result.result.updated_date}
+                  />
+                  <WhoisInfoItem
+                    label='Expires At'
+                    value={result.result.expiration_date}
+                  />
                 </CardContent>
               </Card>
-
-              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
+              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm max-w-full'>
                 <CardHeader>
                   <CardTitle className='text-lg font-semibold text-gray-100'>
-                    Registrar
+                    Additional Details
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p>
-                    <span className='font-medium'>Name:</span>{' '}
-                    {result.result.registrar}
-                  </p>
-                  <p>
-                    <span className='font-medium'>Email:</span>{' '}
-                    {result.result.emails}
-                  </p>
+                <CardContent className='text-gray-200'>
+                  <WhoisInfoItem
+                    label='Emails'
+                    value={result.result.emails}
+                  />
+                  <WhoisInfoItem
+                    label='WHOIS Server'
+                    value={result.result.whois_server}
+                  />
+                  <WhoisInfoItem
+                    label='DNSSEC'
+                    value={result.result.dnssec}
+                  />
                 </CardContent>
               </Card>
-
-              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
-                <CardHeader>
-                  <CardTitle className='text-lg font-semibold text-gray-100'>
-                    Creation Date
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>{result.result.creation_date}</p>
-                </CardContent>
-              </Card>
-
-              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
-                <CardHeader>
-                  <CardTitle className='text-lg font-semibold text-gray-100'>
-                    Expiration Date
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>{result.result.expiration_date}</p>
-                </CardContent>
-              </Card>
-
-              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
-                <CardHeader>
-                  <CardTitle className='text-lg font-semibold text-gray-100'>
-                    Registrar
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Example Registrar, LLC</p>
-                </CardContent>
-              </Card>
-
-              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
+              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm max-w-full'>
                 <CardHeader>
                   <CardTitle className='text-lg font-semibold text-gray-100'>
                     Name Servers
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <ul className='list-disc list-inside'>
-                    {result.result.name_servers.map((server) => (
-                      <li key={server}>{server}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
-                <CardHeader>
-                  <CardTitle className='text-lg font-semibold text-gray-100'>
-                    Privacy Protection
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>Enabled</p>
+                <CardContent className='text-gray-200'>
+                  <WhoisInfoItem
+                    label='Name Servers'
+                    value={result.result.name_servers}
+                  />
                 </CardContent>
               </Card>
             </div>
