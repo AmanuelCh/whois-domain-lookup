@@ -5,39 +5,56 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Search } from 'lucide-react';
-
-const mockWhoisData = {
-  domain: 'example.com',
-  registrant: {
-    name: 'John Doe',
-    organization: 'Example Corp',
-  },
-  registration: {
-    creationDate: '2020-01-01',
-    expirationDate: '2025-01-01',
-    registrar: 'Example Registrar, LLC',
-  },
-  nameServers: ['ns1.example.com', 'ns2.example.com'],
-  privacyProtection: true,
-};
+import { WhoisResponse } from '../lib/type';
 
 export default function WhoisLookup() {
   const [domain, setDomain] = useState('');
-  const [result, setResult] = useState<typeof mockWhoisData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<WhoisResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(false); // Loading state
 
-  const handleLookup = async () => {
+  const fetchWhoisData = async () => {
     setLoading(true);
-    setError(null);
     setResult(null);
-    await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API delay
-    if (domain.toLowerCase() === 'error.com') {
-      setError('Failed to lookup domain. Please try again.');
-    } else {
-      setResult({ ...mockWhoisData, domain });
+    // setDomain('');
+    setError(null);
+
+    // API config
+    const myHeaders = new Headers();
+    myHeaders.append('apikey', process.env.NEXT_PUBLIC_API_KEY || '');
+
+    const requestOptions = {
+      method: 'GET',
+      redirect: 'follow',
+      headers: myHeaders,
+    };
+
+    try {
+      const response = await fetch(
+        `https://api.apilayer.com/whois/query?domain=${domain}`,
+        requestOptions
+      );
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const data: WhoisResponse = await response.json();
+      console.log(data);
+      setResult(data);
+    } catch (err) {
+      console.error('Error:', err);
+      setError('Error fetching data. Make sure you typed the domain too');
+      setResult(null); // Clear any previous results
+    } finally {
+      setLoading(false); // Set loading to false after fetch completes
     }
-    setLoading(false);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      fetchWhoisData();
+    }
   };
 
   return (
@@ -60,11 +77,12 @@ export default function WhoisLookup() {
               placeholder='Enter domain name'
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
+              onKeyDown={handleKeyDown}
               className='flex-grow bg-gray-700/80 border-gray-600 text-gray-100'
               aria-label='Domain name input'
             />
             <Button
-              onClick={handleLookup}
+              onClick={fetchWhoisData}
               disabled={loading}
               className='bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transform transition duration-200 ease-in-out hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50'
               aria-label='Lookup domain'
@@ -97,7 +115,8 @@ export default function WhoisLookup() {
                 </CardHeader>
                 <CardContent>
                   <p>
-                    <span className='font-medium'>Domain:</span> {result.domain}
+                    <span className='font-medium'>Domain:</span>{' '}
+                    {result.result.domain_name}
                   </p>
                 </CardContent>
               </Card>
@@ -105,17 +124,17 @@ export default function WhoisLookup() {
               <Card className='bg-gray-700/80 border-gray-600 backdrop-blur-sm'>
                 <CardHeader>
                   <CardTitle className='text-lg font-semibold text-gray-100'>
-                    Registrant
+                    Registrar
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p>
                     <span className='font-medium'>Name:</span>{' '}
-                    {result.registrant.name}
+                    {result.result.registrar}
                   </p>
                   <p>
-                    <span className='font-medium'>Organization:</span>{' '}
-                    {result.registrant.organization}
+                    <span className='font-medium'>Email:</span>{' '}
+                    {result.result.emails}
                   </p>
                 </CardContent>
               </Card>
@@ -127,7 +146,7 @@ export default function WhoisLookup() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p>{result.registration.creationDate}</p>
+                  <p>{result.result.creation_date}</p>
                 </CardContent>
               </Card>
 
@@ -138,7 +157,7 @@ export default function WhoisLookup() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p>{result.registration.expirationDate}</p>
+                  <p>{result.result.expiration_date}</p>
                 </CardContent>
               </Card>
 
@@ -149,7 +168,7 @@ export default function WhoisLookup() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p>{result.registration.registrar}</p>
+                  <p>Example Registrar, LLC</p>
                 </CardContent>
               </Card>
 
@@ -161,8 +180,8 @@ export default function WhoisLookup() {
                 </CardHeader>
                 <CardContent>
                   <ul className='list-disc list-inside'>
-                    {result.nameServers.map((ns, index) => (
-                      <li key={index}>{ns}</li>
+                    {result.result.name_servers.map((server) => (
+                      <li key={server}>{server}</li>
                     ))}
                   </ul>
                 </CardContent>
@@ -175,7 +194,7 @@ export default function WhoisLookup() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p>{result.privacyProtection ? 'Enabled' : 'Disabled'}</p>
+                  <p>Enabled</p>
                 </CardContent>
               </Card>
             </div>
