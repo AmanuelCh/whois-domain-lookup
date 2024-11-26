@@ -26,7 +26,7 @@ export default function WhoisLookup() {
     }
 
     const myHeaders = new Headers();
-    myHeaders.append('apikey', process.env.NEXT_PUBLIC_API_KEY || ''); // Still not ideal for prod
+    myHeaders.append('apikey', process.env.NEXT_PUBLIC_API_KEY || '');
 
     const requestOptions: RequestInit = {
       method: 'GET',
